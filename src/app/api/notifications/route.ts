@@ -21,31 +21,44 @@ export async function GET(req: Request) {
       .populate({ path: 'data.actorId', model: User, select: 'name email' })
       .sort({ createdAt: -1 });
 
-    const formattedNotifications = notifications.map(notif => {
-      const requestingUserData = notif.data.requestingUserId as any;
-      const invitingUserData = notif.data.invitingUserId as any;
-      const actorData = notif.data.actorId as any;
+    // Use reduce for safer transformation. If a notification is malformed, we can skip it.
+    const formattedNotifications = notifications.reduce<any[]>((acc, notif) => {
+      try {
+        const requestingUserData = notif.data.requestingUserId as any;
+        const invitingUserData = notif.data.invitingUserId as any;
+        const actorData = notif.data.actorId as any;
 
-      return {
-        id: notif._id.toString(),
-        type: notif.type,
-        message: notif.message,
-        data: {
-          teamId: notif.data.teamId?.toString(),
-          teamName: notif.data.teamName,
-          taskId: notif.data.taskId?.toString(),
-          taskTitle: notif.data.taskTitle,
-          requestingUserId: requestingUserData?._id?.toString(),
-          requestingUserName: requestingUserData?.name,
-          invitingUserId: invitingUserData?._id?.toString(),
-          invitingUserName: invitingUserData?.name,
-          actorId: actorData?._id?.toString(),
-          actorName: actorData?.name,
-        },
-        isRead: notif.isRead,
-        createdAt: notif.createdAt.toISOString(),
-      };
-    });
+        // Basic validation to prevent crashes from corrupted data
+        if (!notif._id || !notif.type || !notif.message || !notif.createdAt) {
+          console.warn('Skipping malformed notification:', notif);
+          return acc;
+        }
+
+        acc.push({
+          id: notif._id.toString(),
+          type: notif.type,
+          message: notif.message,
+          data: {
+            teamId: notif.data.teamId?.toString(),
+            teamName: notif.data.teamName,
+            taskId: notif.data.taskId?.toString(),
+            taskTitle: notif.data.taskTitle,
+            requestingUserId: requestingUserData?._id?.toString(),
+            requestingUserName: requestingUserData?.name,
+            invitingUserId: invitingUserData?._id?.toString(),
+            invitingUserName: invitingUserData?.name,
+            actorId: actorData?._id?.toString(),
+            actorName: actorData?.name,
+          },
+          isRead: notif.isRead,
+          createdAt: notif.createdAt.toISOString(),
+        });
+      } catch (e) {
+        console.error(`Error processing notification ${notif._id}:`, e);
+        // Do not add the malformed notification to the result array
+      }
+      return acc;
+    }, []);
 
     return NextResponse.json(formattedNotifications, { status: 200 });
   } catch (error) {
