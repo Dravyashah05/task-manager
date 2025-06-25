@@ -27,12 +27,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       const res = await fetch('/api/notifications');
-      if (!res.ok) throw new Error("Failed to fetch notifications");
+      if (!res.ok) {
+        console.error("Failed to fetch notifications:", res.status, res.statusText);
+        // We don't throw here to avoid unhandled promise rejections on intermittent network issues.
+        return;
+      }
       const data = await res.json();
       setNotifications(data);
     } catch (error) {
-      console.error(error);
-      // Don't clear notifications on error, might be a temporary network issue
+      console.error("Error fetching notifications:", error);
     } finally {
       setIsLoading(false);
     }
