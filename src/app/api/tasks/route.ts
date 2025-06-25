@@ -6,6 +6,7 @@ import dbConnect from '@/lib/mongodb';
 import Task from '@/models/task';
 import Team from '@/models/team';
 import User from '@/models/user';
+import Notification from '@/models/notification';
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -27,6 +28,7 @@ export async function GET(req: Request) {
         { teamId: { $in: userTeamIds } } // Tasks in teams the user is a member of
       ]
     })
+      .populate({ path: 'userId', model: User, select: 'name email' })
       .populate({ path: 'teamId', model: Team, select: 'name' })
       .populate({ path: 'assignedTo', model: User, select: 'name email' })
       .sort({ createdAt: -1 });
@@ -34,6 +36,7 @@ export async function GET(req: Request) {
     const formattedTasks = tasks.map(task => {
         const teamData = task.teamId as any; // Cast to access populated field
         const assignedToData = task.assignedTo as any;
+        const createdByData = task.userId as any;
         return {
             id: task._id.toString(),
             title: task.title,
@@ -42,9 +45,12 @@ export async function GET(req: Request) {
             category: task.category,
             priority: task.priority,
             createdAt: task.createdAt.getTime(),
+            updatedAt: task.updatedAt.getTime(),
+            completedAt: task.completedAt?.getTime(),
             teamId: teamData?._id.toString(),
             team: teamData ? { name: teamData.name } : undefined,
             assignedTo: assignedToData ? { id: assignedToData._id.toString(), name: assignedToData.name, email: assignedToData.email } : undefined,
+            createdBy: { id: createdByData._id.toString(), name: createdByData.name, email: createdByData.email }
         };
     });
 
@@ -57,7 +63,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session?.user?.name) {
         return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
@@ -74,7 +80,6 @@ export async function POST(req: Request) {
             title,
             notes,
             priority: priority && priority !== "none" ? priority : undefined,
-            // status will be set by default in the schema
         };
 
         if (teamId && teamId !== '__none__') {
@@ -87,8 +92,32 @@ export async function POST(req: Request) {
 
         const task = new Task(newTaskData);
         await task.save();
+
+        if (teamId && teamId !== '__none__') {
+            const team = await Team.findById(teamId);
+            if (team) {
+                const notifications = team.members
+                    .filter(memberId => memberId.toString() !== session.user.id)
+                    .map(memberId => ({
+                        userId: memberId,
+                        type: 'TASK_CREATED',
+                        message: `${session.user.name} created a new task in ${team.name}: "${task.title}"`,
+                        data: {
+                            taskId: task._id,
+                            taskTitle: task.title,
+                            teamId: team._id,
+                            teamName: team.name,
+                            actorId: session.user.id,
+                        }
+                    }));
+                if (notifications.length > 0) {
+                    await Notification.insertMany(notifications);
+                }
+            }
+        }
         
         await task.populate([
+            { path: 'userId', model: User, select: 'name email' },
             { path: 'teamId', model: Team, select: 'name' },
             { path: 'assignedTo', model: User, select: 'name email' }
         ]);
@@ -96,15 +125,19 @@ export async function POST(req: Request) {
         const taskObject = task.toObject();
         const teamData = taskObject.teamId as any;
         const assignedToData = taskObject.assignedTo as any;
+        const createdByData = taskObject.userId as any;
+
 
         return NextResponse.json({
             ...taskObject,
             id: task._id.toString(),
             status: task.status,
             createdAt: task.createdAt.getTime(),
+            updatedAt: task.updatedAt.getTime(),
             team: teamData ? { name: teamData.name } : undefined,
             assignedTo: assignedToData ? { id: assignedToData._id.toString(), name: assignedToData.name, email: assignedToData.email } : undefined,
             teamId: teamData?._id.toString(),
+            createdBy: { id: createdByData._id.toString(), name: createdByData.name, email: createdByData.email }
         }, { status: 201 });
 
     } catch (error) {

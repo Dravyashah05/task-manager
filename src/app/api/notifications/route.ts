@@ -18,11 +18,13 @@ export async function GET(req: Request) {
     const notifications = await Notification.find({ userId: session.user.id })
       .populate({ path: 'data.requestingUserId', model: User, select: 'name email' })
       .populate({ path: 'data.invitingUserId', model: User, select: 'name email' })
+      .populate({ path: 'data.actorId', model: User, select: 'name email' })
       .sort({ createdAt: -1 });
 
     const formattedNotifications = notifications.map(notif => {
       const requestingUserData = notif.data.requestingUserId as any;
       const invitingUserData = notif.data.invitingUserId as any;
+      const actorData = notif.data.actorId as any;
 
       return {
         id: notif._id.toString(),
@@ -31,10 +33,14 @@ export async function GET(req: Request) {
         data: {
           teamId: notif.data.teamId?.toString(),
           teamName: notif.data.teamName,
+          taskId: notif.data.taskId?.toString(),
+          taskTitle: notif.data.taskTitle,
           requestingUserId: requestingUserData?._id.toString(),
           requestingUserName: requestingUserData?.name,
           invitingUserId: invitingUserData?._id.toString(),
           invitingUserName: invitingUserData?.name,
+          actorId: actorData?._id.toString(),
+          actorName: actorData?.name,
         },
         isRead: notif.isRead,
         createdAt: notif.createdAt.toISOString(),

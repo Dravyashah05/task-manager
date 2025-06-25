@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Menu, LogIn, LogOut, User, Settings as SettingsIcon, Bell, Home as HomeIcon, Users, Info, Loader2, Check, X, CheckCircle2 } from "lucide-react";
+import { Menu, LogIn, LogOut, User, Settings as SettingsIcon, Bell, Home as HomeIcon, Users, Info, Loader2, Check, X, CheckCircle2, MessageSquare, CheckSquare, UserPlus, FilePlus2, Trophy } from "lucide-react";
 import Link from 'next/link';
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
@@ -32,7 +33,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import type { Notification, NotificationStyle } from "@/types";
+import type { Notification, NotificationStyle, NotificationType } from "@/types";
 import { cn } from "@/lib/utils";
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
@@ -125,6 +126,40 @@ function TeamInviteNotification({ notification, onHandled }: { notification: Not
   );
 }
 
+function GenericNotification({ notification }: { notification: Notification }) {
+  const getIcon = (type: NotificationType) => {
+    switch (type) {
+      case 'WELCOME_TO_TEAM':
+        return <Trophy className="h-4 w-4 text-yellow-500" />;
+      case 'TASK_CREATED':
+        return <FilePlus2 className="h-4 w-4 text-blue-500" />;
+      case 'TASK_UPDATED':
+        return <CheckSquare className="h-4 w-4 text-purple-500" />;
+      case 'TASK_ASSIGNED':
+        return <UserPlus className="h-4 w-4 text-cyan-500" />;
+      case 'NEW_COMMENT':
+        return <MessageSquare className="h-4 w-4 text-green-500" />;
+      default:
+        return <Bell className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  return (
+    <div className="p-3 hover:bg-muted/50 rounded-lg">
+      <div className="flex items-start gap-3">
+        <span className="mt-1">{getIcon(notification.type)}</span>
+        <div className="flex-1">
+          <p className="text-sm">{notification.message}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 const NotificationList = ({ notifications, onNotificationHandled }: { notifications: Notification[], onNotificationHandled: (notificationId: string) => void }) => {
   if (notifications.length === 0) {
     return (
@@ -141,12 +176,7 @@ const NotificationList = ({ notifications, onNotificationHandled }: { notificati
           case 'TEAM_INVITE':
             return <TeamInviteNotification key={notification.id} notification={notification} onHandled={onNotificationHandled} />;
           default:
-            return (
-              <div key={notification.id} className="p-3 hover:bg-muted/50 rounded-lg">
-                <p className="text-sm">{notification.message}</p>
-                <p className="text-xs text-muted-foreground mt-1">{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</p>
-              </div>
-            );
+            return <GenericNotification key={notification.id} notification={notification} />;
         }
       })}
     </div>
@@ -227,9 +257,23 @@ export function Header() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild className={cn(pathname === "/" && "text-primary font-semibold")}><Link href="/" className="flex items-center"><HomeIcon className="mr-2 h-4 w-4" />Home</Link></DropdownMenuItem>
                   <DropdownMenuItem asChild className={cn(pathname === "/profile" && "text-primary font-semibold")}><Link href="/profile" className="flex items-center"><User className="mr-2 h-4 w-4" />Profile</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild className={cn(pathname.startsWith("/analytics") && "text-primary font-semibold")}><Link href="/analytics" className="flex items-center"><Trophy className="mr-2 h-4 w-4" />Analytics</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild className={cn(pathname === "/teams" && "text-primary font-semibold")}><Link href="/teams" className="flex items-center"><Users className="mr-2 h-4 w-4" />Teams</Link></DropdownMenuItem>
                   <DropdownMenuItem asChild className={cn(pathname === "/settings" && "text-primary font-semibold")}><Link href="/settings" className="flex items-center"><SettingsIcon className="mr-2 h-4 w-4" />Settings</Link></DropdownMenuItem>
-                  <DropdownMenuItem asChild className={cn(pathname === "/teams" && "text-primary font-semibold")}><Link href="/teams" className="flex items-center"><Users className="mr-2 h-4 w-4" />Manage Teams</Link></DropdownMenuItem>
                   <DropdownMenuItem asChild className={cn(pathname === "/about" && "text-primary font-semibold")}><Link href="/about" className="flex items-center"><Info className="mr-2 h-4 w-4" />About</Link></DropdownMenuItem>
+                  
+                  {session.user.role === 'admin' && (
+                    <React.Fragment>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild className={cn(pathname.startsWith('/admin') && "text-primary font-semibold")}>
+                          <Link href="/admin" className="flex items-center">
+                            <ShieldAlert className="mr-2 h-4 w-4" />
+                            Admin Panel
+                          </Link>
+                      </DropdownMenuItem>
+                    </React.Fragment>
+                  )}
+                  
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })} className="flex items-center cursor-pointer"><LogOut className="mr-2 h-4 w-4" />Logout</DropdownMenuItem>
                 </>

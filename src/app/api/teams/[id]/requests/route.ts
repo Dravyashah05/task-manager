@@ -50,12 +50,24 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       if (!team.members.includes(requestingUserObjectId)) {
         team.members.push(requestingUserObjectId);
       }
+      // Create a welcome notification for the user who was accepted
+      const welcomeNotification = new Notification({
+        userId: requestingUserObjectId,
+        type: 'WELCOME_TO_TEAM',
+        message: `Welcome! You have been added to the team "${team.name}".`,
+        data: {
+          teamId: team._id,
+          teamName: team.name,
+          actorId: session.user.id, // The owner who accepted
+        },
+      });
+      await welcomeNotification.save();
     }
     // For 'reject', we just remove them from pending, which is already done.
     
     await team.save();
     
-    // After handling the request, delete the corresponding notification
+    // After handling the request, delete the corresponding notification for the owner
     await Notification.deleteOne({
       'data.teamId': team._id,
       'data.requestingUserId': requestingUserObjectId,
