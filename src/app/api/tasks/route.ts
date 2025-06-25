@@ -34,9 +34,15 @@ export async function GET(req: Request) {
       .sort({ createdAt: -1 });
     
     const formattedTasks = tasks.map(task => {
-        const teamData = task.teamId as any; // Cast to access populated field
-        const assignedToData = task.assignedTo as any;
         const createdByData = task.userId as any;
+        if (!createdByData) {
+            console.warn(`Skipping task ${task._id} because its creator no longer exists.`);
+            return null;
+        }
+
+        const teamData = task.teamId as any;
+        const assignedToData = task.assignedTo as any;
+        
         return {
             id: task._id.toString(),
             title: task.title,
@@ -52,7 +58,7 @@ export async function GET(req: Request) {
             assignedTo: assignedToData ? { id: assignedToData._id.toString(), name: assignedToData.name, email: assignedToData.email } : undefined,
             createdBy: { id: createdByData._id.toString(), name: createdByData.name, email: createdByData.email }
         };
-    });
+    }).filter(Boolean); // Filter out any null tasks
 
     return NextResponse.json(formattedTasks, { status: 200 });
   } catch (error) {

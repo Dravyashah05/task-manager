@@ -39,16 +39,25 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       .populate({ path: 'userId', model: User, select: 'name email' })
       .sort({ createdAt: 'asc' });
 
-    const formattedComments = comments.map(comment => ({
-      id: comment._id.toString(),
-      content: comment.content,
-      createdAt: comment.createdAt.toISOString(),
-      user: {
-        id: (comment.userId as any)._id.toString(),
-        name: (comment.userId as any).name,
-        email: (comment.userId as any).email,
-      }
-    }));
+    const formattedComments = comments
+      .map(comment => {
+        const user = comment.userId as any;
+        if (!user) {
+          console.warn(`Skipping comment ${comment._id} because its author no longer exists.`);
+          return null;
+        }
+        return {
+          id: comment._id.toString(),
+          content: comment.content,
+          createdAt: comment.createdAt.toISOString(),
+          user: {
+            id: user._id.toString(),
+            name: user.name,
+            email: user.email,
+          }
+        };
+      })
+      .filter(Boolean); // Filter out null (deleted user) comments
     
     return NextResponse.json(formattedComments, { status: 200 });
 

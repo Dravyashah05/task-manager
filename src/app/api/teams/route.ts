@@ -27,13 +27,13 @@ export async function GET(req: Request) {
         name: team.name,
         code: team.code,
         ownerId: team.ownerId.toString(),
-        members: team.members.map((member: any) => ({
+        members: team.members.filter(Boolean).map((member: any) => ({
             id: member._id.toString(),
             name: member.name,
             email: member.email,
         })),
         createdAt: team.createdAt.getTime(),
-        pendingRequests: isOwner ? team.pendingRequests.map((member: any) => ({
+        pendingRequests: isOwner ? team.pendingRequests.filter(Boolean).map((member: any) => ({
             id: member._id.toString(),
             name: member.name,
             email: member.email,
