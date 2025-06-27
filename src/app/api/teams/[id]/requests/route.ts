@@ -10,6 +10,7 @@ import mongoose from 'mongoose';
 // Handle join requests (Accept/Reject)
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
+
   if (!session?.user?.id) {
     return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
   }
@@ -17,6 +18,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   try {
     await dbConnect();
     const { id: teamId } = params;
+    console.log(`Received POST request for team ID: ${teamId}`);
     const { requestingUserId, action } = await req.json(); // action: 'accept' or 'reject'
 
     if (!requestingUserId || !action) {
@@ -24,7 +26,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
     
     const team = await Team.findById(teamId);
+    console.log(`Attempting to find team with ID: ${teamId}`);
 
+    console.log(`Found team: ${team ? team.name : 'null'}`);
     if (!team) {
       return NextResponse.json({ message: 'Team not found' }, { status: 404 });
     }
@@ -37,6 +41,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const requestingUserObjectId = new mongoose.Types.ObjectId(requestingUserId);
 
     // Check if the request exists
+    console.log(`Checking for pending request from user ID: ${requestingUserId}`);
     const requestIndex = team.pendingRequests.findIndex(id => id.equals(requestingUserObjectId));
     if (requestIndex === -1) {
       return NextResponse.json({ message: 'Join request not found or already handled' }, { status: 404 });
@@ -44,6 +49,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     
     // Remove the user from pending requests
     team.pendingRequests.splice(requestIndex, 1);
+    console.log(`Removed user ${requestingUserId} from pending requests.`);
 
     if (action === 'accept') {
       // Add user to members if not already a member
@@ -61,10 +67,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           actorId: session.user.id, // The owner who accepted
         },
       });
+      console.log('Saving welcome notification...');
       await welcomeNotification.save();
+      console.log('Welcome notification saved.');
     }
-    // For 'reject', we just remove them from pending, which is already done.
-    
+
+    console.log('Saving team document...');
     await team.save();
     
     // After handling the request, delete the corresponding notification for the owner
@@ -73,6 +81,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       'data.requestingUserId': requestingUserObjectId,
       type: 'JOIN_REQUEST'
     });
+    console.log('Deleted join request notification.');
 
     return NextResponse.json({ message: `Request has been ${action === 'accept' ? 'accepted' : 'rejected'}` }, { status: 200 });
 

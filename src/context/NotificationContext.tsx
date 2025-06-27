@@ -42,11 +42,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [status]);
 
   useEffect(() => {
-    if (status === 'authenticated') {
-        fetchNotifications();
-        const interval = setInterval(fetchNotifications, 10000); // Poll every 10 seconds
-        return () => clearInterval(interval);
-    }
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 10000); // Poll every 10 seconds
+    return () => clearInterval(interval);
   }, [status, fetchNotifications]);
 
   const removeNotification = (notificationId: string) => {
