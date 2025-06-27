@@ -13,8 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Menu, LogIn, LogOut, User, Settings as SettingsIcon, Bell, Home as HomeIcon, Users, Info, Loader2, Check, X, CheckCircle2, MessageSquare, CheckSquare, UserPlus, FilePlus2, Trophy } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Menu, LogIn, LogOut, User, Settings as SettingsIcon, Bell, Home as HomeIcon, Users, Info, Loader2, Check, X, CheckCircle2, MessageSquare, CheckSquare, UserPlus, FilePlus2, Trophy, Trash2, XCircle, ShieldAlert } from "lucide-react";
 import Link from 'next/link';
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
@@ -33,6 +33,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import type { Notification, NotificationStyle, NotificationType } from "@/types";
 import { cn } from "@/lib/utils";
 import { useToast } from '@/hooks/use-toast';
@@ -80,13 +91,13 @@ function JoinRequestNotification({ notification, onHandled }: { notification: No
   };
 
   return (
-    <div className="p-3 hover:bg-muted/50 rounded-lg">
-      <p className="text-sm mb-2">{notification.message}</p>
-      <div className="text-xs text-muted-foreground mb-3">{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</div>
-      <div className="flex gap-2">
-        <Button size="sm" className="h-7 px-2 bg-green-500 hover:bg-green-600 text-white" onClick={() => handleRequest('accept')} disabled={!!isLoading}>{isLoading === 'accept' ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}Accept</Button>
-        <Button size="sm" className="h-7 px-2" variant="destructive" onClick={() => handleRequest('reject')} disabled={!!isLoading}>{isLoading === 'reject' ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <X className="mr-1 h-4 w-4" />}Decline</Button>
-      </div>
+    <div className="p-3">
+        <p className="text-sm mb-2">{notification.message}</p>
+        <div className="text-xs text-muted-foreground mb-3">{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</div>
+        <div className="flex gap-2">
+            <Button size="sm" className="h-7 px-2 bg-green-500 hover:bg-green-600 text-white" onClick={() => handleRequest('accept')} disabled={!!isLoading}>{isLoading === 'accept' ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}Accept</Button>
+            <Button size="sm" className="h-7 px-2" variant="destructive" onClick={() => handleRequest('reject')} disabled={!!isLoading}>{isLoading === 'reject' ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <X className="mr-1 h-4 w-4" />}Decline</Button>
+        </div>
     </div>
   );
 }
@@ -115,13 +126,13 @@ function TeamInviteNotification({ notification, onHandled }: { notification: Not
   };
 
   return (
-    <div className="p-3 hover:bg-muted/50 rounded-lg">
-      <p className="text-sm mb-2">{notification.message}</p>
-      <div className="text-xs text-muted-foreground mb-3">{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</div>
-      <div className="flex gap-2">
-        <Button size="sm" className="h-7 px-2 bg-green-500 hover:bg-green-600 text-white" onClick={() => handleInvite('accept')} disabled={!!isLoading}>{isLoading === 'accept' ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}Accept</Button>
-        <Button size="sm" className="h-7 px-2" variant="destructive" onClick={() => handleInvite('reject')} disabled={!!isLoading}>{isLoading === 'reject' ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <X className="mr-1 h-4 w-4" />}Decline</Button>
-      </div>
+     <div className="p-3">
+        <p className="text-sm mb-2">{notification.message}</p>
+        <div className="text-xs text-muted-foreground mb-3">{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</div>
+        <div className="flex gap-2">
+            <Button size="sm" className="h-7 px-2 bg-green-500 hover:bg-green-600 text-white" onClick={() => handleInvite('accept')} disabled={!!isLoading}>{isLoading === 'accept' ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}Accept</Button>
+            <Button size="sm" className="h-7 px-2" variant="destructive" onClick={() => handleInvite('reject')} disabled={!!isLoading}>{isLoading === 'reject' ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <X className="mr-1 h-4 w-4" />}Decline</Button>
+        </div>
     </div>
   );
 }
@@ -129,23 +140,17 @@ function TeamInviteNotification({ notification, onHandled }: { notification: Not
 function GenericNotification({ notification }: { notification: Notification }) {
   const getIcon = (type: NotificationType) => {
     switch (type) {
-      case 'WELCOME_TO_TEAM':
-        return <Trophy className="h-4 w-4 text-yellow-500" />;
-      case 'TASK_CREATED':
-        return <FilePlus2 className="h-4 w-4 text-blue-500" />;
-      case 'TASK_UPDATED':
-        return <CheckSquare className="h-4 w-4 text-purple-500" />;
-      case 'TASK_ASSIGNED':
-        return <UserPlus className="h-4 w-4 text-cyan-500" />;
-      case 'NEW_COMMENT':
-        return <MessageSquare className="h-4 w-4 text-green-500" />;
-      default:
-        return <Bell className="h-4 w-4 text-muted-foreground" />;
+      case 'WELCOME_TO_TEAM': return <Trophy className="h-4 w-4 text-yellow-500" />;
+      case 'TASK_CREATED': return <FilePlus2 className="h-4 w-4 text-blue-500" />;
+      case 'TASK_UPDATED': return <CheckSquare className="h-4 w-4 text-purple-500" />;
+      case 'TASK_ASSIGNED': return <UserPlus className="h-4 w-4 text-cyan-500" />;
+      case 'NEW_COMMENT': return <MessageSquare className="h-4 w-4 text-green-500" />;
+      default: return <Bell className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
   return (
-    <div className="p-3 hover:bg-muted/50 rounded-lg">
+    <div className="p-3">
       <div className="flex items-start gap-3">
         <span className="mt-1">{getIcon(notification.type)}</span>
         <div className="flex-1">
@@ -159,7 +164,6 @@ function GenericNotification({ notification }: { notification: Notification }) {
   );
 }
 
-
 const NotificationList = ({ notifications, onNotificationHandled }: { notifications: Notification[], onNotificationHandled: (notificationId: string) => void }) => {
   if (notifications.length === 0) {
     return (
@@ -168,29 +172,59 @@ const NotificationList = ({ notifications, onNotificationHandled }: { notificati
   }
 
   return (
-    <div className="p-2 space-y-2">
-      {notifications.map(notification => {
-        switch (notification.type) {
-          case 'JOIN_REQUEST':
-            return <JoinRequestNotification key={notification.id} notification={notification} onHandled={onNotificationHandled} />;
-          case 'TEAM_INVITE':
-            return <TeamInviteNotification key={notification.id} notification={notification} onHandled={onNotificationHandled} />;
-          default:
-            return <GenericNotification key={notification.id} notification={notification} />;
-        }
-      })}
+    <div className="p-2 space-y-1">
+      {notifications.map(notification => (
+        <div key={notification.id} className="relative rounded-lg hover:bg-muted/50">
+           {!notification.isRead && (<span className="absolute left-1.5 top-1/2 -translate-y-1/2 flex h-2 w-2 rounded-full bg-blue-500" />)}
+           <div className="pl-5">
+             {(() => {
+                 switch (notification.type) {
+                   case 'JOIN_REQUEST': return <JoinRequestNotification notification={notification} onHandled={onNotificationHandled} />;
+                   case 'TEAM_INVITE': return <TeamInviteNotification notification={notification} onHandled={onNotificationHandled} />;
+                   default: return <GenericNotification notification={notification} />;
+                 }
+             })()}
+           </div>
+         </div>
+      ))}
     </div>
   )
 };
+
+const NotificationFooter = ({ onClearAll, disabled }: { onClearAll: () => void, disabled: boolean }) => (
+  <AlertDialog>
+    <AlertDialogTrigger asChild>
+      <Button variant="ghost" size="sm" className="w-full text-sm text-destructive hover:text-destructive hover:bg-destructive/10" disabled={disabled}>
+        <Trash2 className="mr-2 h-4 w-4" /> Clear All
+      </Button>
+    </AlertDialogTrigger>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+        <AlertDialogDescription>
+          This will permanently delete all your notifications. This action cannot be undone.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction onClick={onClearAll} className={cn(buttonVariants({ variant: 'destructive' }))}>
+          Clear All
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);
+
 
 export function Header() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
   const isLoading = status === "loading";
 
   const [mounted, setMounted] = useState(false);
-  const { notifications, isLoading: isLoadingNotifications, removeNotification } = useNotifications();
+  const { notifications, unreadCount, isLoading: isLoadingNotifications, removeNotification, markAllAsRead, clearAllNotifications } = useNotifications();
   
   const notificationStyle: NotificationStyle = session?.user?.notificationStyle ?? 'dock';
 
@@ -205,6 +239,21 @@ export function Header() {
       return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
     }
     return names[0][0].toUpperCase();
+  };
+  
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen && unreadCount > 0) {
+      markAllAsRead();
+    }
+  };
+
+  const handleClearAll = async () => {
+    await clearAllNotifications();
+    toast({
+      title: "Notifications Cleared",
+      description: "Your notification list is now empty.",
+      icon: <CheckCircle2 className="h-5 w-5 text-primary" />,
+    });
   };
 
   const notificationContent = (
@@ -229,15 +278,19 @@ export function Header() {
           {status === 'authenticated' && (
             <>
               {mounted && notificationStyle === "dock" && (
-                <Sheet>
-                  <SheetTrigger asChild><NotificationBellButton aria-label="View notifications (Dock)" notificationCount={notifications.length} /></SheetTrigger>
-                  <SheetContent side="right"><SheetHeader><SheetTitle>Notifications</SheetTitle><SheetDescription>Here are your latest updates.</SheetDescription></SheetHeader>{notificationContent}<SheetFooter><SheetClose asChild><Button variant="outline" className="w-full">Close</Button></SheetClose></SheetFooter></SheetContent>
+                <Sheet onOpenChange={handleOpenChange}>
+                  <SheetTrigger asChild><NotificationBellButton aria-label="View notifications (Dock)" notificationCount={unreadCount} /></SheetTrigger>
+                  <SheetContent side="right"><SheetHeader><SheetTitle>Notifications</SheetTitle><SheetDescription>Here are your latest updates.</SheetDescription></SheetHeader>{notificationContent}<SheetFooter><NotificationFooter onClearAll={handleClearAll} disabled={notifications.length === 0} /></SheetFooter></SheetContent>
                 </Sheet>
               )}
               {mounted && notificationStyle === "float" && (
-                <Popover>
-                  <PopoverTrigger asChild><NotificationBellButton aria-label="View notifications (Float)" notificationCount={notifications.length} /></PopoverTrigger>
-                  <PopoverContent className="w-80 p-0" align="end"><div className="p-4 border-b"><h3 className="text-lg font-semibold leading-none tracking-tight">Notifications</h3><p className="text-sm text-muted-foreground">Here are your latest updates.</p></div>{notificationContent}</PopoverContent>
+                <Popover onOpenChange={handleOpenChange}>
+                  <PopoverTrigger asChild><NotificationBellButton aria-label="View notifications (Float)" notificationCount={unreadCount} /></PopoverTrigger>
+                  <PopoverContent className="w-80 p-0" align="end">
+                    <div className="p-4 border-b"><h3 className="text-lg font-semibold leading-none tracking-tight">Notifications</h3><p className="text-sm text-muted-foreground">Here are your latest updates.</p></div>
+                    {notificationContent}
+                    <div className="p-1 border-t"><NotificationFooter onClearAll={handleClearAll} disabled={notifications.length === 0} /></div>
+                  </PopoverContent>
                 </Popover>
               )}
               {!mounted && (<Button variant="outline" size="icon" className="h-9 w-9" aria-label="View notifications" disabled><Bell className="h-5 w-5" /></Button>)}

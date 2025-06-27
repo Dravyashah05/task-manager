@@ -7,9 +7,12 @@ import type { Notification } from '@/types';
 
 interface NotificationContextType {
   notifications: Notification[];
+  unreadCount: number;
   isLoading: boolean;
   fetchNotifications: () => Promise<void>;
   removeNotification: (notificationId: string) => void;
+  markAllAsRead: () => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -18,6 +21,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const fetchNotifications = useCallback(async () => {
     if (status !== 'authenticated') {
@@ -29,7 +33,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       const res = await fetch('/api/notifications');
       if (!res.ok) {
         console.error("Failed to fetch notifications:", res.status, res.statusText);
-        // We don't throw here to avoid unhandled promise rejections on intermittent network issues.
         return;
       }
       const data = await res.json();
@@ -42,16 +45,42 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [status]);
 
   useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000); // Poll every 10 seconds
-    return () => clearInterval(interval);
+    if (status === 'authenticated') {
+        fetchNotifications();
+        const interval = setInterval(fetchNotifications, 10000); // Poll every 10 seconds
+        return () => clearInterval(interval);
+    }
   }, [status, fetchNotifications]);
 
   const removeNotification = (notificationId: string) => {
     setNotifications(prev => prev.filter(n => n.id !== notificationId));
   };
+  
+  const markAllAsRead = async () => {
+    // Optimistically update UI
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    
+    try {
+      await fetch('/api/notifications/read-all', { method: 'POST' });
+    } catch (error) {
+      console.error("Failed to mark all as read:", error);
+      // Revert optimistic update on failure
+      fetchNotifications();
+    }
+  };
 
-  const value = { notifications, isLoading, fetchNotifications, removeNotification };
+  const clearAllNotifications = async () => {
+    const oldNotifications = notifications;
+    setNotifications([]); // Optimistic update
+    try {
+      await fetch('/api/notifications/clear', { method: 'DELETE' });
+    } catch (error) {
+      console.error("Failed to clear notifications:", error);
+      setNotifications(oldNotifications); // Revert on failure
+    }
+  };
+
+  const value = { notifications, unreadCount, isLoading, fetchNotifications, removeNotification, markAllAsRead, clearAllNotifications };
 
   return (
     <NotificationContext.Provider value={value}>
