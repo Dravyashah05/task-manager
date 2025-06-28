@@ -28,7 +28,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Task, Team, TeamMember } from "@/types";
 import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, Wand2 } from "lucide-react";
-import { generateSubtasksAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -130,18 +129,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, taskToEdit, teams }: TaskF
         toast({ title: "Title Required", description: "Please enter a title before generating subtasks.", variant: "destructive" });
         return;
     }
-    setIsGeneratingSubtasks(true);
-    try {
-        const subtasks = await generateSubtasksAction({ title, notes });
-        const subtaskChecklist = subtasks.map(subtask => `- [ ] ${subtask}`).join('\n');
-        const newNotes = notes ? `${notes}\n\n**Generated Subtasks:**\n${subtaskChecklist}` : `**Generated Subtasks:**\n${subtaskChecklist}`;
-        form.setValue('notes', newNotes, { shouldValidate: true });
-        toast({ title: "Subtasks Generated!", description: "Subtasks have been added to the notes section.", icon: <CheckCircle2 className="h-5 w-5 text-primary" /> });
-    } catch (error) {
-        toast({ title: "Failed to Generate Subtasks", description: (error as Error).message, variant: "destructive" });
-    } finally {
-        setIsGeneratingSubtasks(false);
-    }
+    
   }
 
   return (
