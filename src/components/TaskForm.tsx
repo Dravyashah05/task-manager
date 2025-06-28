@@ -27,11 +27,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Task, Team, TeamMember } from "@/types";
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, Wand2 } from "lucide-react";
+import { generateSubtasksAction } from "@/app/actions";
+import { useToast } from "@/hooks/use-toast";
+
 
 const taskFormSchema = z.object({
   title: z.string().min(1, "Title is required").max(100, "Title must be 100 characters or less"),
-  notes: z.string().max(500, "Notes must be 500 characters or less").optional(),
+  notes: z.string().max(1000, "Notes must be 1000 characters or less").optional(),
   priority: z.string().optional(),
   teamId: z.string().optional(),
   assignedTo: z.string().optional(),
@@ -50,6 +53,8 @@ interface TaskFormProps {
 export function TaskForm({ isOpen, onClose, onSubmit, taskToEdit, teams }: TaskFormProps) {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [isGeneratingSubtasks, setIsGeneratingSubtasks] = useState(false);
+  const { toast } = useToast();
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -118,6 +123,27 @@ export function TaskForm({ isOpen, onClose, onSubmit, taskToEdit, teams }: TaskF
     form.reset();
   };
 
+  const handleGenerateSubtasks = async () => {
+    const title = form.getValues('title');
+    const notes = form.getValues('notes');
+    if (!title) {
+        toast({ title: "Title Required", description: "Please enter a title before generating subtasks.", variant: "destructive" });
+        return;
+    }
+    setIsGeneratingSubtasks(true);
+    try {
+        const subtasks = await generateSubtasksAction({ title, notes });
+        const subtaskChecklist = subtasks.map(subtask => `- [ ] ${subtask}`).join('\n');
+        const newNotes = notes ? `${notes}\n\n**Generated Subtasks:**\n${subtaskChecklist}` : `**Generated Subtasks:**\n${subtaskChecklist}`;
+        form.setValue('notes', newNotes, { shouldValidate: true });
+        toast({ title: "Subtasks Generated!", description: "Subtasks have been added to the notes section.", icon: <CheckCircle2 className="h-5 w-5 text-primary" /> });
+    } catch (error) {
+        toast({ title: "Failed to Generate Subtasks", description: (error as Error).message, variant: "destructive" });
+    } finally {
+        setIsGeneratingSubtasks(false);
+    }
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if(!open) onClose(); }}>
       <DialogContent className="sm:max-w-xl bg-card rounded-lg shadow-xl">
@@ -149,9 +175,22 @@ export function TaskForm({ isOpen, onClose, onSubmit, taskToEdit, teams }: TaskF
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-foreground/80">Notes (Optional)</FormLabel>
+                  <div className="flex justify-between items-center mb-1">
+                    <FormLabel className="text-foreground/80">Notes (Optional)</FormLabel>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-auto px-2 py-1 text-xs"
+                      onClick={handleGenerateSubtasks}
+                      disabled={!form.watch('title') || isGeneratingSubtasks}
+                    >
+                      {isGeneratingSubtasks ? <Loader2 className="mr-1 h-4 w-4 animate-spin"/> : <Wand2 className="mr-1 h-4 w-4 text-accent" />}
+                      Generate Subtasks
+                    </Button>
+                  </div>
                   <FormControl>
-                    <Textarea placeholder="Add any relevant details or context..." className="resize-none bg-background border-input focus:ring-primary" rows={3} {...field} />
+                    <Textarea placeholder="Add any relevant details or context..." className="resize-none bg-background border-input focus:ring-primary" rows={5} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -239,5 +278,3 @@ export function TaskForm({ isOpen, onClose, onSubmit, taskToEdit, teams }: TaskF
     </Dialog>
   );
 }
-
-    

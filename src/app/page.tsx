@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, type FormEvent } from "react";
@@ -143,9 +144,6 @@ export default function Home() {
       return task.teamId === teamFilter;
     })
     .filter((task) => {
-      if (task.status != "done") return true;
-    })
-    .filter((task) => {
       if (!assignedToMeFilter) return true;
       return task.assignedTo?.id === session?.user?.id;
     })
@@ -172,14 +170,12 @@ export default function Home() {
     });
 
   const handleResetFilters = () => {
-    setSearchTerm("");
     setPriorityFilter("all");
     setTeamFilter("all");
     setAssignedToMeFilter(false);
   };
 
   const activeFilterCount =
-    (searchTerm.trim() ? 1 : 0) +
     (priorityFilter !== "all" ? 1 : 0) +
     (teamFilter !== "all" ? 1 : 0) +
     (assignedToMeFilter ? 1 : 0);
@@ -305,61 +301,6 @@ export default function Home() {
         description: (error as Error).message,
         variant: "destructive",
       });
-    }
-  };
-
-  const handleSmartSort = async () => {
-    if (tasks.length === 0) {
-      toast({
-        title: "No tasks to sort",
-        description: "Add some tasks before using Smart Sort.",
-        icon: <Info className="h-5 w-5 text-primary" />,
-      });
-      return;
-    }
-    setIsSorting(true);
-    try {
-      const sortedInfos = await smartSortTasksAction(tasks);
-
-      const updatePromises = sortedInfos.map((info) =>
-        fetch(`/api/tasks/${info.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            category: info.category,
-            priority: info.priority,
-          }),
-        })
-      );
-
-      const results = await Promise.all(updatePromises);
-      const failedUpdates = results.filter((res) => !res.ok);
-
-      if (failedUpdates.length > 0) {
-        console.error(`${failedUpdates.length} tasks failed to update.`);
-        throw new Error(
-          `Failed to update ${failedUpdates.length} task(s). You may not have permission to edit tasks in some teams.`
-        );
-      }
-
-      await fetchData(); // Re-fetch all data to ensure consistency
-
-      toast({
-        title: "Tasks Smart Sorted!",
-        description: "Categories and priorities have been updated.",
-        icon: <CheckCircle2 className="h-5 w-5 text-primary" />,
-      });
-    } catch (error) {
-      console.error("Smart Sort Error:", error);
-      toast({
-        title: "Smart Sort Failed",
-        description:
-          (error as Error).message || "Could not sort tasks. Please try again.",
-        variant: "destructive",
-        icon: <AlertTriangle className="h-5 w-5" />,
-      });
-    } finally {
-      setIsSorting(false);
     }
   };
 
@@ -645,7 +586,7 @@ export default function Home() {
           </div>
         </main>
         <footer className="py-6 text-center text-sm text-muted-foreground border-t border-border/50">
-          © {currentYear} TaskFlow. Developed By Dravya shah
+          © {currentYear} TaskFlow. Crafted with 🧠 & ❤️.
         </footer>
       </div>
     );
@@ -661,27 +602,12 @@ export default function Home() {
               Your Tasks
             </h2>
             <span className="text-sm text-muted-foreground">
-              {activeFilterCount === 0
-                ? `(${tasks.length} task${tasks.length === 1 ? "" : "s"})`
-                : `(${displayedTasks.length} of ${tasks.length} task${
-                    tasks.length === 1 ? "" : "s"
-                  } shown)`}
+              {`(${displayedTasks.length} of ${tasks.length} task${
+                tasks.length === 1 ? "" : "s"
+              } shown)`}
             </span>
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            <Button
-              onClick={handleSmartSort}
-              disabled={isSorting || tasks.length === 0}
-              variant="outline"
-              className="shadow-sm hover:shadow-md transition-shadow w-full sm:w-auto"
-            >
-              {isSorting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Wand2 className="mr-2 h-4 w-4 text-accent" />
-              )}
-              Smart Sort
-            </Button>
             <Button
               onClick={() => handleOpenTaskForm()}
               className="shadow-sm hover:shadow-lg focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-150 bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto"
@@ -692,10 +618,20 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row items-center gap-4 mb-8">
+          <div className="relative w-full sm:flex-grow">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search tasks by title or notes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 w-full bg-background shadow-sm"
+            />
+          </div>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="shadow-sm">
+              <Button variant="outline" className="shadow-sm w-full sm:w-auto">
                 <Filter className="mr-2 h-4 w-4" />
                 Filters
                 {activeFilterCount > 0 && (
@@ -708,7 +644,7 @@ export default function Home() {
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-96" align="start">
+            <PopoverContent className="w-96" align="end">
               <div className="grid gap-y-6">
                 <div className="space-y-2">
                   <h4 className="font-medium leading-none">Filter Tasks</h4>
@@ -717,20 +653,6 @@ export default function Home() {
                   </p>
                 </div>
                 <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="search-filter">Search</Label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        id="search-filter"
-                        type="search"
-                        placeholder="Search tasks..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 w-full bg-background"
-                      />
-                    </div>
-                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="priority-filter">Priority</Label>
                     <Select
@@ -801,7 +723,7 @@ export default function Home() {
                     className="justify-start p-0 h-auto text-sm text-muted-foreground hover:text-foreground"
                   >
                     <XCircle className="mr-2 h-4 w-4" />
-                    Clear all filters
+                    Clear filters
                   </Button>
                 )}
               </div>
@@ -858,7 +780,7 @@ export default function Home() {
       />
 
       <footer className="py-6 text-center text-sm text-muted-foreground border-t border-border/50">
-        © {currentYear} TaskFlow. Developed Dravya Shah
+        © {currentYear} TaskFlow. Crafted with 🧠 & ❤️.
       </footer>
     </div>
   );

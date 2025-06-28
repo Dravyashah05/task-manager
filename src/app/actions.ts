@@ -1,6 +1,8 @@
+
 "use server";
 
 import { smartSort as smartSortFlow, type SmartSortInput } from "@/ai/flows/smart-sort";
+import { generateSubtasks as generateSubtasksFlow, type GenerateSubtasksInput } from "@/ai/flows/generate-subtasks";
 import type { Task } from "@/types";
 
 export async function smartSortTasksAction(tasks: Task[]): Promise<Array<Pick<Task, 'id' | 'category' | 'priority'>>> {
@@ -25,5 +27,25 @@ export async function smartSortTasksAction(tasks: Task[]): Promise<Array<Pick<Ta
   } catch (error) {
     console.error("Error in smartSortTasksAction:", error);
     throw new Error("Failed to sort tasks using AI. Please try again.");
+  }
+}
+
+
+export async function generateSubtasksAction(input: { title: string, notes?: string }): Promise<string[]> {
+  if (!input.title) {
+    return [];
+  }
+
+  const generateSubtasksInput: GenerateSubtasksInput = {
+    title: input.title,
+    notes: input.notes,
+  };
+
+  try {
+    const result = await generateSubtasksFlow(generateSubtasksInput);
+    return result.subtasks;
+  } catch (error) {
+    console.error("Error in generateSubtasksAction:", error);
+    throw new Error("Failed to generate sub-tasks using AI. Please try again.");
   }
 }
